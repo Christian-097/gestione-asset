@@ -1,6 +1,7 @@
 import { uuid, getAll, getOne, save, remove, getByIndex } from "./db.js";
 
 const app = document.getElementById("app");
+const tabInfo = document.getElementById("tabInfo");
 const tabSale = document.getElementById("tabSale");
 const tabAsset = document.getElementById("tabAsset");
 
@@ -46,20 +47,24 @@ const CATEGORY_DEFS = {
 };
 
 // routing
-let route = { view: "saleList" }; // saleList | saleDetail | assetList | assetDetail
+// routing
+let route = { view: "info" }; // info | saleList | saleDetail | assetList | assetDetail
+
 
 let assetCategoryFilter = null; // es. "SE", "CDZ", null = nessuna selezione
 
-tabSale.onclick  = () => { route = { view: "saleList" }; setActiveTab("sale"); render(); };
+tabInfo.onclick = () => { route = { view: "info" }; setActiveTab("info"); render(); };
+tabSale.onclick = () => { route = { view: "saleList" }; setActiveTab("sale"); render(); };
 tabAsset.onclick = () => { route = { view: "assetList" }; setActiveTab("asset"); render(); };
 
-setActiveTab("sale");
+setActiveTab("info");
 render();
 
 /* =========================
    UTIL
 ========================= */
 function setActiveTab(which) {
+  tabInfo.classList.toggle("active", which === "info");
   tabSale.classList.toggle("active", which === "sale");
   tabAsset.classList.toggle("active", which === "asset");
 }
@@ -95,10 +100,27 @@ function esc(s) {
 ========================= */
 async function render() {
   await updateTabCounts();
+  if (route.view === "info") return renderInfo();
   if (route.view === "saleList") return renderSaleList();
   if (route.view === "saleDetail") return renderSaleDetail(route.id);
   if (route.view === "assetList") return renderAssetList();
   if (route.view === "assetDetail") return renderAssetDetail(route.id, route.presetSalaId || null);
+}
+
+function renderInfo() {
+  app.innerHTML = `
+    <h2>Informazioni – Centrale MI Bersaglio</h2>
+
+    <div class="cardBox">
+      <div class="kv"><span>CLLI</span><b>MILAITCC</b></div>
+      <div class="kv"><span>Indirizzo</span><b>Via Giovanni Antonio Plana, 38</b></div>
+      <div class="kv"><span>Comune</span><b>Milano</b></div>
+      <div class="kv"><span>Regione</span><b>Lombardia</b></div>
+      <div class="kv"><span>POD</span><b>IT012E00005318</b></div>
+      <div class="kv"><span>Ente fornitore</span><b>Unareti</b></div>
+      <div class="kv"><span>Potenza contrattualizzata</span><b>3,0 MW</b></div>
+    </div>
+  `;
 }
 
 /* =========================
@@ -948,4 +970,8 @@ function injectMiniStyles() {
   const style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
+
+  
+
+
 }
