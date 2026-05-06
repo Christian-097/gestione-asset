@@ -17,20 +17,30 @@ body {
 .topbar {
   background: var(--blu-fibercop);
   color: var(--bianco);
-  padding: 12px;
+  padding: 16px 12px 12px 12px;
 }
 
 .topbar-title {
-  font-size: 30px;
-  font-weight: bold;
-  margin-bottom: 8px;
+  font-size: 24px;          /* stessa dimensione del bottone */
+  font-weight: 900;         /* stesso peso */
+  margin-left: 8px;
+  letter-spacing: 0.3px;    /* migliora leggibilità */
 }
 
 /* ========= TAB ========= */
+.topbar-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* 🔹 separazione chiara sopra/sotto */
 .topbar-tabs {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
 }
+
 
 .tab-btn {
   background: var(--bianco);
@@ -91,3 +101,127 @@ button {
 .utilDotGreen{ background: #2ecc71; }
 .utilDotOrange{ background: #f39c12; }
 .utilDotRed{ background: #e74c3c; }
+
+/* ======= HEADER LEFT (logo + titolo) ======= */
+.topbar-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.fc-logo{
+  background:#fff;
+  color: var(--blu-fibercop);
+  font-weight: 900;
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-size: 30px;
+}
+
+/* ======= Nascondi tabs quando NON sei nella consistenza ======= */
+.tabs-hidden{
+  display:none !important;
+}
+
+/* ======= Home / Menu principale ======= */
+.home-wrap{
+  max-width: 720px;
+  margin: 20px auto;
+}
+
+.home-hero{
+  background: var(--bianco);
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.home-actions{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.home-action{
+  background: var(--bianco);
+  color: var(--blu-fibercop);
+  border: 2px solid var(--blu-fibercop);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+
+  display: flex;              /* 🔹 attiva layout flex */
+  align-items: center;        /* 🔹 centra verticale */
+  justify-content: center;    /* 🔹 centra orizzontale */
+
+  height: 70px;               /* 🔹 altezza fissa pulsante */
+}
+
+/* hover elegante */
+.home-action:hover{
+  background: #e6eef7;
+}
+
+.home-action:hover{
+  border-color: rgba(0,0,0,.22);
+}
+
+.home-action .title{
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  color: var(--blu-fibercop);
+}
+
+.home-action .desc{
+  font-size: 13px;
+  opacity: .9;
+  color: var(--blu-fibercop);
+}
+
+.search-input{
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(0,0,0,.2);
+  border-radius: 6px;
+  box-sizing: border-box;   /* 🔴 QUESTO RISOLVE IL PROBLEMA */
+}
+
+.search-box{
+  position: relative;
+}
+
+.search-input{
+  width: 100%;
+  padding: 10px 36px 10px 10px;  /* spazio a destra per la X */
+  border: 1px solid rgba(0,0,0,.2);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.search-clear{
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
+  font-size: 16px;
+  color: #888;
+}
+
+/* hover */
+.search-clear:hover{
+  color: #000;
+}
+
+.header-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
