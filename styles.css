@@ -39,6 +39,7 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 12px;
+  flex-wrap: wrap;
 }
 
 
@@ -224,4 +225,31 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.plan-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.plan-card{
+  overflow:hidden;
+}
+
+.plan-thumb{
+  width:100%;
+  height:auto;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:6px;
+  margin-top:10px;
+}
+
+.plan-frame{
+  width:100%;
+  height:320px;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:6px;
+  margin-top:10px;
+  background:#fff;
 }
