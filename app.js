@@ -1,10 +1,22 @@
 import { uuid, getAll, getOne, save, remove, getByIndex } from "./db.js";
 
+const PLANIMETRIE_MI_BERSAGLIO = [
+  "Piano -2",
+  "Piano -1",
+  "Piano 0",
+  "Piano 1",
+  "Piano 2",
+  "Piano 3",
+  "Piano 4",
+  "Piano 5",
+  "Piano copertura"
+];
+
 const app = document.getElementById("app");
 const tabInfo = document.getElementById("tabInfo");
+const tabPlanimetrie = document.getElementById("tabPlanimetrie");
 const tabSale = document.getElementById("tabSale");
 const tabAsset = document.getElementById("tabAsset");
-
 const tabsBar = document.getElementById("tabs");
 const topbarTitle = document.getElementById("topbarTitle");
 
@@ -76,6 +88,7 @@ let assetCategoryFilter = null;
    TAB HANDLERS (solo in consistenza)
 ========================= */
 tabInfo.onclick  = () => { if (!currentCentraleId) return; route = { view: "info" }; setActiveTab("info"); render(); };
+tabPlanimetrie.onclick = () => {if (!currentCentraleId) return; route = { view: "planimetrie" }; setActiveTab("planimetrie"); render();};
 tabSale.onclick  = () => { if (!currentCentraleId) return; route = { view: "saleList" }; setActiveTab("sale"); render(); };
 tabAsset.onclick = () => { if (!currentCentraleId) return; route = { view: "assetList" }; setActiveTab("asset"); render(); };
 
@@ -90,6 +103,7 @@ loadCentrali().then(() => {
 ========================= */
 function setActiveTab(which) {
   tabInfo.classList.toggle("active", which === "info");
+  tabPlanimetrie.classList.toggle("active", which === "planimetrie");
   tabSale.classList.toggle("active", which === "sale");
   tabAsset.classList.toggle("active", which === "asset");
 }
@@ -97,7 +111,7 @@ function setActiveTab(which) {
 function setChrome() {
   const inConsistenza =
     !!currentCentraleId &&
-    ["info","saleList","saleDetail","assetList","assetDetail"].includes(route.view);
+    ["info","planimetrie","saleList","saleDetail","assetList","assetDetail"].includes(route.view);
 
   // tabs visibili solo in consistenza
   tabsBar.classList.toggle("tabs-hidden", !inConsistenza);
@@ -160,6 +174,7 @@ async function render() {
   if (route.view === "consistenzaList") return renderConsistenzaList();
 
   if (route.view === "info") return renderInfo();
+  if (route.view === "planimetrie") return renderPlanimetrie();
   if (route.view === "saleList") return renderSaleList();
   if (route.view === "saleDetail") return renderSaleDetail(route.id);
   if (route.view === "assetList") return renderAssetList();
@@ -464,6 +479,75 @@ function renderInfo() {
     route = { view: "consistenzaList" };
     render();
   };
+}
+
+function renderPlanimetrie() {
+  const c = getCentraleById(currentCentraleId);
+
+  const items =
+    (c?.id === "MI_BERSAGLIO")
+      ? PLANIMETRIE_MI_BERSAGLIO.map(t => {
+          let fileName;
+
+          if (t === "Piano copertura") {
+            fileName = "piano_copertura.pdf";
+          } else {
+            const livello = t.replace("Piano ", "").trim();
+            fileName = `piano_${livello}.pdf`;
+          }
+
+          return {
+            titolo: t,
+            tipo: "pdf",
+            url: `./planimetrie/MI_BERSAGLIO/${fileName}`
+          };
+        })
+      : (Array.isArray(c?.planimetrie) ? c.planimetrie : []);
+
+
+  app.innerHTML = `
+    <h2>Planimetrie</h2>
+
+    ${items.length ? `
+      <div class="plan-grid">
+        ${items.map((p, idx) => `
+          <div class="cardBox plan-card">
+            <div class="cardTitle">${esc(p.titolo || `Planimetria ${idx+1}`)}</div>
+            <div class="cardSub">${esc((p.tipo || "").toUpperCase() || "FILE")}</div>
+
+            
+            ${p.url ? (
+              p.tipo === "img" ? `
+                <img class="plan-thumb" src="${esc(p.url)}" alt="${esc(p.titolo || "Planimetria")}">
+              ` : p.tipo === "pdf" ? `
+                <iframe class="plan-frame" src="${esc(p.url)}"></iframe>
+              ` : `
+                <div class="cardSub">Anteprima non disponibile.</div>
+              `
+            ) : `
+              <div class="cardSub">File non ancora associato.</div>
+            `}
+
+
+            <div class="rowBtns">
+              ${p.url
+                ? `<a class="smallBtn" href="${esc(p.url)}" target="_blank" rel="noopener">Apri</a>`
+                : `<button class="smallBtn" disabled style="opacity:.6; cursor:not-allowed;">Apri</button>`
+              }
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    ` : `
+      <div class="cardBox">
+        <div class="cardSub">
+          Nessuna planimetria caricata per questa centrale.
+        </div>
+      </div>
+    `}
+  `;
+
+  setActiveTab("planimetrie");
 }
 
 /* =========================
