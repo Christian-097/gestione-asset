@@ -5,14 +5,36 @@ const tabInfo = document.getElementById("tabInfo");
 const tabSale = document.getElementById("tabSale");
 const tabAsset = document.getElementById("tabAsset");
 
+const tabsBar = document.getElementById("tabs");
+const topbarTitle = document.getElementById("topbarTitle");
+
 const BLUE = "rgb(0, 70, 145)";
 
-// === Draft per mantenere i dati durante la creazione (evita reset categoria) ===
+/* =========================
+   ANAGRAFICA CENTRALI (READ-ONLY)
+========================= */
+let CENTRALI = [];
+
+async function loadCentrali() {
+  const res = await fetch("./centrali.json");
+  CENTRALI = await res.json();
+}
+
+function getCentraleById(id) {
+  return CENTRALI.find(c => c.id === id) || null;
+}
+
+/* =========================
+   STATO APP
+========================= */
+let currentCentraleId = null; // centrale selezionata per consistenza
+
+// Draft per mantenere i dati durante la creazione
 let draftAsset = null;
 let draftSala = null;
 
 /* =========================
-   CATEGORIE E CAMPI TECNICI (numerici)
+   CATEGORIE E CAMPI TECNICI
 ========================= */
 const CATEGORY_DEFS = {
   TRASFORMATORE: { label: "Trasformatore", fields: [
@@ -46,19 +68,22 @@ const CATEGORY_DEFS = {
   FC: { label: "FC", fields: [{ key: "tagliaMCH", label: "Taglia", unit: "mc/h" }] }
 };
 
-// routing
-// routing
-let route = { view: "info" }; // info | saleList | saleDetail | assetList | assetDetail
+// Routing
+let route = { view: "home" }; // home | centraliList | consistenzaList | info | saleList | saleDetail | assetList | assetDetail
+let assetCategoryFilter = null;
 
+/* =========================
+   TAB HANDLERS (solo in consistenza)
+========================= */
+tabInfo.onclick  = () => { if (!currentCentraleId) return; route = { view: "info" }; setActiveTab("info"); render(); };
+tabSale.onclick  = () => { if (!currentCentraleId) return; route = { view: "saleList" }; setActiveTab("sale"); render(); };
+tabAsset.onclick = () => { if (!currentCentraleId) return; route = { view: "assetList" }; setActiveTab("asset"); render(); };
 
-let assetCategoryFilter = null; // es. "SE", "CDZ", null = nessuna selezione
+setActiveTab(null);
 
-tabInfo.onclick = () => { route = { view: "info" }; setActiveTab("info"); render(); };
-tabSale.onclick = () => { route = { view: "saleList" }; setActiveTab("sale"); render(); };
-tabAsset.onclick = () => { route = { view: "assetList" }; setActiveTab("asset"); render(); };
-
-setActiveTab("info");
-render();
+loadCentrali().then(() => {
+  render();
+});
 
 /* =========================
    UTIL
@@ -69,9 +94,37 @@ function setActiveTab(which) {
   tabAsset.classList.toggle("active", which === "asset");
 }
 
+function setChrome() {
+  const inConsistenza =
+    !!currentCentraleId &&
+    ["info","saleList","saleDetail","assetList","assetDetail"].includes(route.view);
+
+  // tabs visibili solo in consistenza
+  tabsBar.classList.toggle("tabs-hidden", !inConsistenza);
+
+  // ✅ NUOVA LOGICA TITOLO
+  if (inConsistenza) {
+    const c = getCentraleById(currentCentraleId);
+    topbarTitle.textContent = (c?.nome || "").toUpperCase();
+  } else {
+    topbarTitle.textContent = ""; // 🔴 vuoto fuori dalla consistenza
+  }
+
+}
+
+
 async function updateTabCounts() {
-  const sale = await getAll("sale");
-  const asset = await getAll("asset");
+  const inConsistenza =
+    !!currentCentraleId &&
+    ["info","saleList","saleDetail","assetList","assetDetail"].includes(route.view);
+  if (!inConsistenza) return;
+
+  const saleAll = await getAll("sale");
+  const assetAll = await getAll("asset");
+
+  const sale = saleAll.filter(s => (s.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+  const asset = assetAll.filter(a => (a.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+
   tabSale.textContent  = `Sale (${sale.length})`;
   tabAsset.textContent = `Asset (${asset.length})`;
 }
@@ -99,7 +152,13 @@ function esc(s) {
    ROUTER
 ========================= */
 async function render() {
+  setChrome();
   await updateTabCounts();
+
+  if (route.view === "home") return renderHome();
+  if (route.view === "centraliList") return renderCentraliList();
+  if (route.view === "consistenzaList") return renderConsistenzaList();
+
   if (route.view === "info") return renderInfo();
   if (route.view === "saleList") return renderSaleList();
   if (route.view === "saleDetail") return renderSaleDetail(route.id);
@@ -107,28 +166,314 @@ async function render() {
   if (route.view === "assetDetail") return renderAssetDetail(route.id, route.presetSalaId || null);
 }
 
-function renderInfo() {
-  app.innerHTML = `
-    <h2>Informazioni – Centrale MI Bersaglio</h2>
+/* =========================
+   HOME
+========================= */
+function renderHome() {
+  currentCentraleId = null;
+  setActiveTab(null);
 
-    <div class="cardBox">
-      <div class="kv"><span>CLLI</span><b>MILAITCC</b></div>
-      <div class="kv"><span>Indirizzo</span><b>Via Giovanni Antonio Plana, 38</b></div>
-      <div class="kv"><span>Comune</span><b>Milano</b></div>
-      <div class="kv"><span>Regione</span><b>Lombardia</b></div>
-      <div class="kv"><span>POD</span><b>IT012E00005318</b></div>
-      <div class="kv"><span>Ente fornitore</span><b>Unareti</b></div>
-      <div class="kv"><span>Potenza contrattualizzata</span><b>3,0 MW</b></div>
+  app.innerHTML = `
+    <div class="home-wrap">
+      <div class="home-actions">
+        <button class="home-action" id="btn_lista_centrali" type="button">
+          <div class="title">Lista centrali</div>
+        </button>
+
+        <button class="home-action" id="btn_consistenza" type="button">
+          <div class="title">Consistenza centrali</div>
+        </button>
+      </div>
     </div>
   `;
+
+  document.getElementById("btn_lista_centrali").onclick = () => {
+    route = { view: "centraliList" };
+    render();
+  };
+
+  document.getElementById("btn_consistenza").onclick = () => {
+    route = { view: "consistenzaList" };
+    render();
+  };
+}
+
+/* =========================
+   LISTA CENTRALI (READ-ONLY)
+========================= */
+function renderCentraliList() {
+  app.innerHTML = `
+    <div class="header-row">
+      <button class="smallBtn" id="btn_back_home">←</button>
+      <h2>Lista centrali</h2>
+    </div>
+
+    <div class="cardBox">
+      <div class="search-box">
+        <input
+          id="search_centrali"
+          type="text"
+          placeholder="Cerca centrale..."
+          class="search-input"
+        >
+        <button id="search_clear" class="search-clear">✖</button>
+      </div>
+    </div>
+
+    <div id="centrali_list"></div>
+  `;
+
+  // Back
+  document.getElementById("btn_back_home").onclick = () => {
+    route = { view: "home" };
+    render();
+  };
+
+  const listHost = document.getElementById("centrali_list");
+  const searchEl = document.getElementById("search_centrali");
+  const clearBtn = document.getElementById("search_clear");
+
+  // nascondi la X se vuoto
+  clearBtn.style.display = "none";
+
+  // input typing
+  searchEl.addEventListener("input", (e) => {
+    const val = e.target.value;
+
+    renderList(val);
+
+    // mostra/nasconde X
+    clearBtn.style.display = val ? "block" : "none";
+  });
+
+  // click su X
+  clearBtn.onclick = () => {
+    searchEl.value = "";
+    renderList("");
+    clearBtn.style.display = "none";
+  };
+
+  // Render lista (sempre visibile; filtra solo se scrivi)
+  function renderList(filterText = "") {
+    const text = filterText.trim().toLowerCase();
+
+    const filtered = CENTRALI.filter(c => {
+      if (!text) return true; // campo vuoto => tutte visibili
+
+      const nome = (c.nome || "").toLowerCase();
+      const clli = (c.clli || "").toLowerCase();
+      const indirizzo = (c.indirizzo || "").toLowerCase();
+
+      // cerca per nome OPPURE CLLI OPPURE indirizzo
+      return nome.includes(text) || clli.includes(text) || indirizzo.includes(text);
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, "it", { sensitivity: "base" }));
+
+    listHost.innerHTML = filtered.map(c => `
+      <div class="cardBox">
+        <div class="cardTitle">${esc(c.nome)}</div>
+        <div class="cardSub">
+          CLLI: <b>${esc(c.clli || "—")}</b> ·
+          Strategicità: <b>${esc(c.strategicita || "—")}</b>
+        </div>
+        <div class="cardSub">
+          Indirizzo: <b>${esc(c.indirizzo || "—")}</b>
+          Comune: <b>${esc(c.comune || "—")}</b>
+        </div>
+        <div class="cardSub">
+          Progettista: <b>${esc(c.progettista || "—")}</b>
+        </div>
+        <div class="cardSub">
+          Lotto IU: <b>${esc(c.lottoIU || "—")}</b>
+          Impresa Unica: <b>${esc(c.IU || "—")}</b>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // ✅ Mostra SUBITO tutte le centrali
+  renderList("");
+
+  // ✅ Filtro live
+  searchEl.addEventListener("input", (e) => {
+    renderList(e.target.value);
+  });
+}
+
+/* =========================
+   CONSISTENZA CENTRALI
+========================= */
+function renderConsistenzaList() {
+  app.innerHTML = `
+    <div class="header-row">
+      <button class="smallBtn" id="btn_back_home2">←</button>
+      <h2>Consistenza centrali</h2>
+    </div
+    
+    <div class="cardBox">
+      <div class="search-box">
+        <input
+          id="search_consistenza"
+          type="text"
+          placeholder="Cerca centrale..."
+          class="search-input"
+        >
+        <button id="search_clear_cons" class="search-clear">✖</button>
+      </div>
+    </div>
+
+    <div id="consistenza_list"></div>
+
+  `;
+
+  const listHost = document.getElementById("consistenza_list");
+  const searchEl = document.getElementById("search_consistenza");
+  const clearBtn = document.getElementById("search_clear_cons");
+
+  clearBtn.style.display = "none";
+
+  // funzione render lista
+  function renderList(filterText = "") {
+    const text = filterText.trim().toLowerCase();
+
+    const filtered = CENTRALI
+      .filter(c => {
+        if (!text) return true;
+
+        const nome = (c.nome || "").toLowerCase();
+        const clli = (c.clli || "").toLowerCase();
+        const indirizzo = (c.indirizzo || "").toLowerCase();
+
+        return nome.includes(text) || clli.includes(text) || indirizzo.includes(text);
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "it", { sensitivity: "base" }));
+
+    listHost.innerHTML = filtered.map(c => {
+      const enabled = !!c.consistenzaEnabled;
+
+      return `
+        <div class="cardBox" style="opacity:${enabled ? 1 : .55}">
+          <div class="cardHead">
+            <div>
+              <div class="cardTitle">${esc(c.nome)}</div>
+              <div class="cardSub">
+                CLLI: <b>${esc(c.clli || "—")}</b> · 
+                Strategicità: <b>${esc(c.strategicita || "—")}</b>
+              </div>
+              <div class="cardSub">
+                Indirizzo: <b>${esc(c.indirizzo || "—")}</b>
+              </div>
+            </div>
+            <button class="smallBtn" data-open-cons="${c.id}" ${enabled ? "" : "disabled"}>
+              ${enabled ? "Apri" : "Prossimamente"}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // ricollego eventi ai bottoni
+    document.querySelectorAll("[data-open-cons]").forEach(btn => {
+      btn.onclick = () => {
+        const cid = btn.dataset.openCons;
+        const c = getCentraleById(cid);
+
+        if (!c || !c.consistenzaEnabled) return;
+
+        currentCentraleId = cid;
+        route = { view: "info" };
+        setActiveTab("info");
+        render();
+      };
+    });
+  }
+
+  // render iniziale
+  renderList();
+
+  // ricerca live
+  searchEl.addEventListener("input", (e) => {
+    const val = e.target.value;
+
+    renderList(val);
+    clearBtn.style.display = val ? "block" : "none";
+  });
+
+  // bottone X
+  clearBtn.onclick = () => {
+    searchEl.value = "";
+    renderList("");
+    clearBtn.style.display = "none";
+  };
+
+  document.getElementById("btn_back_home2").onclick = () => {
+    route = { view: "home" };
+    render();
+  };
+
+  app.querySelectorAll("[data-open-cons]").forEach(btn => {
+    btn.onclick = () => {
+      const cid = btn.dataset.openCons;
+      const c = getCentraleById(cid);
+      if (!c || !c.consistenzaEnabled) return;
+
+      currentCentraleId = cid;
+      route = { view: "info" };
+      setActiveTab("info");
+      render();
+    };
+  });
+}
+
+/* =========================
+   INFO (dinamico per centrale selezionata)
+========================= */
+function renderInfo() {
+  const c = getCentraleById(currentCentraleId);
+
+  app.innerHTML = `
+    <h2>Informazioni – ${esc(c?.nome || "Centrale")}</h2>
+
+    <div class="cardBox">
+      <div class="kv"><span>CLLI</span><b>${esc(c?.clli || "—")}</b></div>
+      <div class="kv"><span>Strategicità</span><b>${esc(c?.strategicita || "—")}</b></div>
+      <div class="kv"><span>Indirizzo</span><b>${esc(c?.indirizzo || "—")}</b></div>
+      <div class="kv"><span>Comune</span><b>${esc(c?.comune || "—")}</b></div>
+      <div class="kv"><span>Regione</span><b>${esc(c?.regione || "—")}</b></div>
+      <div class="kv"><span>POD</span><b>${esc(c?.pod || "—")}</b></div>
+      <div class="kv"><span>Ente fornitore</span><b>${esc(c?.enteFornitore || "—")}</b></div>
+      <div class="kv"><span>Potenza contrattualizzata</span><b>${esc(c?.potenzaContrattualizzata || "—")}</b></div>
+      <div class="kv"><span>Progettista</span><b>${esc(c?.progettista || "—")}</b></div>
+      <div class="kv"><span>Lotto IU</span><b>${esc(c?.lottoIU || "—")}</b></div>
+      <div class="kv"><span>Impresa Unica</span><b>${esc(c?.IU || "—")}</b></div>
+    </div>
+
+    <div class="rowBtns">
+      <button class="smallBtn" id="btn_back_cons">← Consistenza centrali</button>
+    </div>
+  `;
+
+  document.getElementById("btn_back_cons").onclick = () => {
+    currentCentraleId = null;
+    setActiveTab(null);
+    route = { view: "consistenzaList" };
+    render();
+  };
 }
 
 /* =========================
    SALE LIST
 ========================= */
 async function renderSaleList() {
-  const sale = (await getAll("sale")).sort((a,b)=> (a.nome||"").localeCompare(b.nome||""));
-  const asset = await getAll("asset");
+  const saleAll = await getAll("sale");
+  const assetAll = await getAll("asset");
+
+  const sale = saleAll
+    .filter(s => (s.centraleId || "MI_BERSAGLIO") === currentCentraleId)
+    .sort((a,b)=> (a.nome||"").localeCompare(b.nome||""));
+
+  const asset = assetAll
+    .filter(a => (a.centraleId || "MI_BERSAGLIO") === currentCentraleId);
 
   app.innerHTML = `
     <h2>Sale</h2>
@@ -165,6 +510,7 @@ async function renderSaleList() {
   document.getElementById("btn_new_sala").onclick = () => {
     draftSala = {
       id: uuid(),
+      centraleId: currentCentraleId,
       nome: "",
       edificio: "Plana",
       piano: "",
@@ -177,18 +523,24 @@ async function renderSaleList() {
 }
 
 /* =========================
-   SALE DETAIL (crea/modifica)
+   SALE DETAIL
 ========================= */
 async function renderSaleDetail(id) {
   const isNew = !id;
 
   const s = isNew ? (draftSala ?? {
-    id: uuid(), nome:"", edificio:"Plana", piano:"", note:""
+    id: uuid(),
+    centraleId: currentCentraleId,
+    nome:"", edificio:"Plana", piano:"", note:""
   }) : await getOne("sale", id);
 
   if (!s) { route = { view:"saleList" }; return render(); }
 
-  const assets = await getByIndex("asset", "salaId", s.id);
+  // Forza default centrale su dati vecchi
+  if (!s.centraleId) s.centraleId = "MI_BERSAGLIO";
+
+  const assetsAll = await getByIndex("asset", "salaId", s.id);
+  const assets = assetsAll.filter(a => (a.centraleId || "MI_BERSAGLIO") === currentCentraleId);
 
   app.innerHTML = `
     <h2>${isNew ? "Nuova sala" : "Sala: " + esc(s.nome)}</h2>
@@ -244,7 +596,6 @@ async function renderSaleDetail(id) {
     </div>
   `;
 
-  // apri asset
   app.querySelectorAll("[data-open-asset]").forEach(btn => {
     btn.onclick = () => {
       route = { view:"assetDetail", id: btn.dataset.openAsset };
@@ -253,7 +604,6 @@ async function renderSaleDetail(id) {
     };
   });
 
-  // indietro
   document.getElementById("btn_back_sale").onclick = () => {
     draftSala = null;
     route = { view:"saleList" };
@@ -261,7 +611,6 @@ async function renderSaleDetail(id) {
     render();
   };
 
-  // crea/salva
   document.getElementById("btn_save_sala").onclick = async () => {
     s.nome = document.getElementById("sd_nome").value.trim();
     s.edificio = document.getElementById("sd_edificio").value;
@@ -270,14 +619,15 @@ async function renderSaleDetail(id) {
 
     if (!s.nome) return alert("Inserisci il nome della sala.");
 
+    s.centraleId = currentCentraleId;
     await save("sale", s);
     draftSala = null;
+
     route = { view:"saleDetail", id: s.id };
     setActiveTab("sale");
     render();
   };
 
-  // aggiungi asset in sala
   const btnAdd = document.getElementById("btn_add_asset_from_sala");
   if (btnAdd) {
     btnAdd.onclick = () => {
@@ -288,7 +638,6 @@ async function renderSaleDetail(id) {
     };
   }
 
-  // elimina sala
   const btnDel = document.getElementById("btn_delete_sala");
   if (btnDel) {
     btnDel.onclick = async () => {
@@ -305,46 +654,36 @@ async function renderSaleDetail(id) {
 /* =========================
    ASSET LIST
 ========================= */
-async function renderAssetList() {  const sale = await getAll("sale");
-  const asset = await getAll("asset");
+async function renderAssetList() {
+  const saleAll = await getAll("sale");
+  const assetAll = await getAll("asset");
 
-  // === conteggio asset per categoria ===
+  const sale = saleAll.filter(s => (s.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+  const asset = assetAll.filter(a => (a.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+
   const countByCat = {};
-  for (const a of asset) {
-    countByCat[a.categoria] = (countByCat[a.categoria] || 0) + 1;
-  }
+  for (const a of asset) countByCat[a.categoria] = (countByCat[a.categoria] || 0) + 1;
 
   const totalCount = asset.length;
-
-  // === categorie con almeno 1 asset ===
-  const categories = Object.keys(CATEGORY_DEFS)
-    .filter(cat => countByCat[cat]);
+  const categories = Object.keys(CATEGORY_DEFS).filter(cat => countByCat[cat]);
 
   app.innerHTML = `
     <h2>Asset</h2>
 
-    <!-- FILTRI -->
     <div class="cardBox">
       <div class="sectionTitle">Filtra per tipologia</div>
       <div class="rowBtns">
-
-        <!-- TUTTE -->
-        <button class="smallBtn ${assetCategoryFilter === "ALL" ? "active" : ""}"
-                data-cat-filter="ALL">
+        <button class="smallBtn ${assetCategoryFilter === "ALL" ? "active" : ""}" data-cat-filter="ALL">
           Tutte (${totalCount})
         </button>
-
         ${categories.map(cat => `
-          <button class="smallBtn ${assetCategoryFilter === cat ? "active" : ""}"
-                  data-cat-filter="${cat}">
+          <button class="smallBtn ${assetCategoryFilter === cat ? "active" : ""}" data-cat-filter="${cat}">
             ${CATEGORY_DEFS[cat].label} (${countByCat[cat]})
           </button>
         `).join("")}
-
       </div>
     </div>
 
-    <!-- ELENCO -->
     <div class="cardBox">
       <div class="sectionTitle">
         ${
@@ -359,11 +698,7 @@ async function renderAssetList() {  const sale = await getAll("sale");
       ${
         assetCategoryFilter
           ? asset
-              .filter(a =>
-                assetCategoryFilter === "ALL"
-                  ? true
-                  : a.categoria === assetCategoryFilter
-              )
+              .filter(a => assetCategoryFilter === "ALL" ? true : a.categoria === assetCategoryFilter)
               .sort((a,b)=> (a.nome||"").localeCompare(b.nome||""))
               .map(a => {
                 const s = sale.find(x => x.id === a.salaId);
@@ -387,7 +722,6 @@ async function renderAssetList() {  const sale = await getAll("sale");
     </div>
   `;
 
-  // === click filtri ===
   app.querySelectorAll("[data-cat-filter]").forEach(btn => {
     btn.onclick = () => {
       assetCategoryFilter = btn.dataset.catFilter;
@@ -395,7 +729,6 @@ async function renderAssetList() {  const sale = await getAll("sale");
     };
   });
 
-  // === apri asset ===
   app.querySelectorAll("[data-open-asset]").forEach(btn => {
     btn.onclick = () => {
       route = { view:"assetDetail", id: btn.dataset.openAsset };
@@ -404,7 +737,6 @@ async function renderAssetList() {  const sale = await getAll("sale");
     };
   });
 
-  // === nuovo asset ===
   document.getElementById("btn_new_asset").onclick = () => {
     assetCategoryFilter = "ALL";
     route = { view:"assetDetail", id: null };
@@ -413,20 +745,21 @@ async function renderAssetList() {  const sale = await getAll("sale");
   };
 }
 
-
 /* =========================
-   ASSET DETAIL (crea/modifica)
-   - BATTERIE: tipo batteria + associazione SE/UPS
-   - CDZ: tipologia + mandata
-   - SE: potenza e percentuale calcolate
+   ASSET DETAIL (la tua logica completa, con centraleId)
 ========================= */
 async function renderAssetDetail(id, presetSalaId = null) {
-  const sale = await getAll("sale");
-  const allAssets = await getAll("asset");
+  const saleAll = await getAll("sale");
+  const allAssetsAll = await getAll("asset");
+
+  const sale = saleAll.filter(s => (s.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+  const allAssets = allAssetsAll.filter(a => (a.centraleId || "MI_BERSAGLIO") === currentCentraleId);
+
   const isNew = !id;
 
   if (isNew && !draftAsset) {
     draftAsset = {
+      centraleId: currentCentraleId,
       id: uuid(),
       nome: "",
       salaId: presetSalaId || (sale[0]?.id || ""),
@@ -434,14 +767,11 @@ async function renderAssetDetail(id, presetSalaId = null) {
       marca: "",
       annoInstallazione: null,
       specs: {},
-      // batterie
       battTipo: "ELI",
       seId: null,
       upsId: null,
-      // cdz
       cdzTipo: "ED monoblocco",
       cdzMandata: "Dislocamento",
-      // qegbt
       breakers: [],
       note: ""
     };
@@ -449,6 +779,13 @@ async function renderAssetDetail(id, presetSalaId = null) {
 
   let a = isNew ? draftAsset : await getOne("asset", id);
   if (!a) { route = { view:"assetList" }; return render(); }
+
+  // default per vecchi dati
+  if (!a.centraleId) a.centraleId = "MI_BERSAGLIO";
+  if (a.centraleId !== currentCentraleId) {
+    route = { view:"assetList" };
+    return render();
+  }
 
   const saleOptions = sale
     .map(s => `<option value="${s.id}" ${s.id===a.salaId?'selected':''}>${esc(s.nome)}</option>`)
@@ -461,7 +798,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
   const sala = sale.find(s => s.id === a.salaId);
   const ubic = `${sala?.edificio || "—"} · Piano ${sala?.piano || "—"} · ${sala?.nome || "—"}`;
 
-  // liste per batterie owner
   const seList = allAssets.filter(x => x.categoria === "SE").sort((x,y)=> (x.nome||"").localeCompare(y.nome||""));
   const upsList = allAssets.filter(x => x.categoria === "UPS").sort((x,y)=> (x.nome||"").localeCompare(y.nome||""));
 
@@ -641,7 +977,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
       `;
     }).join("");
 
-    // SE: riga percentuale utilizzo
     if (cat === "SE") {
       specHost.insertAdjacentHTML("beforeend", `
         <div class="specRow">
@@ -679,7 +1014,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
     const V = parseNumber(tensEl.value);
     const In = parseNumber(tagliaEl.value);
 
-    // kW = A*V/1000
     let pKW = null;
     if (I != null && V != null) {
       pKW = (I * V) / 1000;
@@ -688,7 +1022,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
       potEl.value = "";
     }
 
-    // %
     let pct = null;
     if (I != null && In != null && In > 0) pct = (I / In) * 100;
 
@@ -699,15 +1032,12 @@ async function renderAssetDetail(id, presetSalaId = null) {
       setDotColor(utilDotEl, (pct == null || !Number.isFinite(pct)) ? null : pct);
     }
 
-    // salva in memoria
     if (!a.specs) a.specs = {};
     if (pKW != null && Number.isFinite(pKW)) a.specs.potenzaKW = Number(pKW.toFixed(2));
   }
 
-  // init specs
   renderSpecEdit(a.categoria);
 
-  // listeners SE live
   if (a.categoria === "SE") {
     recalcSE();
     ["ad_spec_caricoA","ad_spec_tensioneV","ad_spec_tagliaA"].forEach(id => {
@@ -716,7 +1046,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
     });
   }
 
-  // batteria: popola owner
   if (a.categoria === "BATTERIE") {
     const ownerTypeSel = document.getElementById("ad_owner_type");
     const ownerIdSel = document.getElementById("ad_owner_id");
@@ -737,7 +1066,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
     fillOwner();
   }
 
-  // QEGBT: interruttori UI
   if (a.categoria === "QEGBT") {
     if (!Array.isArray(a.breakers)) a.breakers = [];
 
@@ -812,11 +1140,11 @@ async function renderAssetDetail(id, presetSalaId = null) {
     renderBreakers();
   }
 
-  // cambio categoria: non resetta più a SE grazie al draft
+  // cambio categoria
   catSel.onchange = () => {
     a.categoria = catSel.value;
     if (!a.specs) a.specs = {};
-    renderAssetDetail(null, a.salaId); // rerender completo usando draftAsset (categoria non si perde)
+    renderAssetDetail(null, a.salaId); // rerender completo usando draftAsset
   };
 
   // SAVE
@@ -829,7 +1157,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
 
       if (!a.nome) return alert("Inserisci il nome dell’asset.");
 
-      // Marca non richiesta su QEGBT
       if (a.categoria === "QEGBT") {
         a.marca = "";
       } else {
@@ -837,7 +1164,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
         if (!a.marca) return alert("Inserisci la marca.");
       }
 
-      // CDZ: salva tipologia/mandata
       if (a.categoria === "CDZ") {
         a.cdzTipo = document.getElementById("ad_cdz_tipo").value;
         a.cdzMandata = document.getElementById("ad_cdz_mandata").value;
@@ -845,7 +1171,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
         delete a.cdzTipo; delete a.cdzMandata;
       }
 
-      // BATTERIE: salva tipo + owner
       if (a.categoria === "BATTERIE") {
         a.battTipo = document.getElementById("ad_batt_tipo").value;
         const t = document.getElementById("ad_owner_type").value;
@@ -857,7 +1182,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
         a.seId = null; a.upsId = null;
       }
 
-      // SPECS numerici
       const def = CATEGORY_DEFS[a.categoria];
       const newSpecs = {};
       if (def && def.fields && def.fields.length > 0) {
@@ -872,7 +1196,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
         }
       }
 
-      // SE: forza potenza calcolata
       if (a.categoria === "SE") {
         const I = newSpecs.caricoA;
         const V = newSpecs.tensioneV;
@@ -882,7 +1205,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
 
       a.specs = newSpecs;
 
-      // QEGBT: salva interruttori (da DOM)
       if (a.categoria === "QEGBT") {
         const rows = document.querySelectorAll("#brk_list [data-brk-row]");
         const breakers = [];
@@ -903,6 +1225,7 @@ async function renderAssetDetail(id, presetSalaId = null) {
         delete a.breakers;
       }
 
+      a.centraleId = currentCentraleId;
       await save("asset", a);
       draftAsset = null;
 
@@ -915,7 +1238,6 @@ async function renderAssetDetail(id, presetSalaId = null) {
     }
   };
 
-  // delete
   const delBtn = document.getElementById("btn_delete_asset");
   if (delBtn) {
     delBtn.onclick = async () => {
@@ -929,7 +1251,8 @@ async function renderAssetDetail(id, presetSalaId = null) {
 }
 
 /* =========================
-   Stili minimi
+   Stili minimi (mantengo i tuoi layout base)
+   NB: NON ridefinisco i tab qui per non confliggere con styles.css
 ========================= */
 injectMiniStyles();
 function injectMiniStyles() {
@@ -942,12 +1265,12 @@ function injectMiniStyles() {
     .primaryBtn{ background:${BLUE}; color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:800; cursor:pointer; margin-top:8px; }
     .dangerBtn{ background:#fff; color:#b00020; border:1px solid #b00020; padding:10px 12px; border-radius:6px; font-weight:800; cursor:pointer; }
     .smallBtn{ background:#fff; color:${BLUE}; border:1px solid ${BLUE}; padding:8px 10px; border-radius:6px; font-weight:800; cursor:pointer; white-space:nowrap; }
-    .smallBtn.active{ background: rgb(0, 70, 145);color:#fff;}
+    .smallBtn.active{ background:${BLUE}; color:#fff; }
     .rowBtns{ display:flex; gap:10px; flex-wrap:wrap; margin:10px 0; }
     .sectionTitle{ font-weight:900; margin-bottom:10px; }
     .formRow{ display:flex; flex-direction:column; gap:6px; margin:10px 0; }
     .formRow label{ font-weight:800; font-size:13px; }
-    textarea{ min-height:90px; }
+    textarea{ min-height:90px; width:100%; }
     .kv{ display:flex; justify-content:space-between; gap:10px; padding:6px 0; }
     .kv span{ opacity:.85; }
     .listItem{ display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px; border:1px solid rgba(0,0,0,.08); border-radius:6px; background:#fff; margin:8px 0; }
@@ -956,22 +1279,8 @@ function injectMiniStyles() {
     .specInput{ display:flex; gap:10px; align-items:center; }
     .specInput input{ flex:1; }
     .unit{ font-weight:900; min-width:44px; text-align:right; color:${BLUE}; opacity:.85; }
-
-    .utilDot{ width:10px; height:10px; border-radius:999px; display:inline-block; border:1px solid rgba(0,0,0,.15); }
-    .utilDotGray{ background:#b0b0b0; }
-    .utilDotGreen{ background:#2ecc71; }
-    .utilDotOrange{ background:#f39c12; }
-    .utilDotRed{ background:#e74c3c; }
-
-    .tab-btn{background: ${BLUE};color: #fff;border: 1px solid ${BLUE};}
-    .tab-btn.active{ background: #fff !important; color: ${BLUE} !important; border: 1px solid ${BLUE} !important;}
-
   `;
   const style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
-
-  
-
-
 }
