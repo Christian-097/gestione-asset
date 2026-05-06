@@ -277,15 +277,19 @@ function renderCentraliList() {
           Strategicità: <b>${esc(c.strategicita || "—")}</b>
         </div>
         <div class="cardSub">
-          Indirizzo: <b>${esc(c.indirizzo || "—")}</b>
+          Indirizzo: <b>${esc(c.indirizzo || "—")}</b> ·
           Comune: <b>${esc(c.comune || "—")}</b>
         </div>
         <div class="cardSub">
           Progettista: <b>${esc(c.progettista || "—")}</b>
         </div>
         <div class="cardSub">
-          Lotto IU: <b>${esc(c.lottoIU || "—")}</b>
+          Lotto IU: <b>${esc(c.lottoIU || "—")}</b> ·
           Impresa Unica: <b>${esc(c.IU || "—")}</b>
+        </div>
+        <div class="cardSub">
+          POD: <b>${esc(c.pod || "—")}</b> ·
+          Potenza contrattualizzata: <b>${esc(c.potenzaContrattualizzata || "—")}</b> kW
         </div>
       </div>
     `).join("");
@@ -442,7 +446,8 @@ function renderInfo() {
       <div class="kv"><span>Regione</span><b>${esc(c?.regione || "—")}</b></div>
       <div class="kv"><span>POD</span><b>${esc(c?.pod || "—")}</b></div>
       <div class="kv"><span>Ente fornitore</span><b>${esc(c?.enteFornitore || "—")}</b></div>
-      <div class="kv"><span>Potenza contrattualizzata</span><b>${esc(c?.potenzaContrattualizzata || "—")}</b></div>
+      <div class="kv"><span>Potenza contrattualizzata</span><b> ${c?.potenzaContrattualizzata? esc(c.potenzaContrattualizzata) + " kW": "—"}</b></div>
+
       <div class="kv"><span>Progettista</span><b>${esc(c?.progettista || "—")}</b></div>
       <div class="kv"><span>Lotto IU</span><b>${esc(c?.lottoIU || "—")}</b></div>
       <div class="kv"><span>Impresa Unica</span><b>${esc(c?.IU || "—")}</b></div>
