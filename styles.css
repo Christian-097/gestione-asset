@@ -18,6 +18,10 @@ body {
   background: var(--blu-fibercop);
   color: var(--bianco);
   padding: 16px 12px 12px 12px;
+
+  position: sticky;   /* ✅ sempre visibile */
+  top: 0;
+  z-index: 1000;
 }
 
 .topbar-title {
@@ -37,20 +41,49 @@ body {
 /* 🔹 separazione chiara sopra/sotto */
 .topbar-tabs {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   margin-top: 12px;
-  flex-wrap: wrap;
+
+  overflow-x: auto;       /* ✅ scroll orizzontale */
+  -webkit-overflow-scrolling: touch;
+
+  padding-bottom: 4px;
 }
 
+/* nasconde scrollbar (iPhone style) */
+.topbar-tabs::-webkit-scrollbar {
+  display: none;
+}
 
 .tab-btn {
-  background: var(--bianco);
+  background: white;
   color: var(--blu-fibercop);
+
   border: none;
-  padding: 8px 14px;
-  font-weight: bold;
+  border-radius: 20px;
+
+  padding: 10px 14px;
+  min-width: 44px;
+
+  font-size: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   cursor: pointer;
-  border-radius: 4px;
+
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: var(--blu-fibercop);
+  color: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.tab-btn:active {
+  transform: scale(0.92);
 }
 
 .tab-btn:hover {
@@ -155,6 +188,7 @@ button {
   display: flex;              /* 🔹 attiva layout flex */
   align-items: center;        /* 🔹 centra verticale */
   justify-content: center;    /* 🔹 centra orizzontale */
+  
 
   height: 70px;               /* 🔹 altezza fissa pulsante */
 }
@@ -252,4 +286,15 @@ button {
   border-radius:6px;
   margin-top:10px;
   background:#fff;
+}
+
+/* Tab HOME icona */
+.tab-home {
+  padding: 8px 10px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.listItem {
+  padding: 14px;
 }
